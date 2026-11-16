@@ -1,0 +1,35 @@
+[
+  {
+    "desc": "最简：只有 name",
+    "payload": { "name": "接口测试-最简" },
+    "expect_status": 200,
+    "expect_name": "接口测试-最简"
+  },
+  {
+    "desc": "中文 name",
+    "payload": { "name": "接口测试-中文名称" },
+    "expect_status": 200,
+    "expect_name": "接口测试-中文名称"
+  },
+  {
+    "desc": "带 data 嵌套",
+    "payload": {
+      "name": "接口测试-带data",
+      "data": { "price": 99.9, "tags": ["a", "b"], "owner": "mayday" }
+    },
+    "expect_status": 200,
+    "expect_name": "接口测试-带data"
+  },
+  {
+    "desc": "data 为 null",
+    "payload": { "name": "接口测试-data为空", "data": null },
+    "expect_status": 200,
+    "expect_name": "接口测试-data为空"
+  },
+  {
+    "desc": "负例：缺 name",
+    "payload": { "data": { "price": 1 } },
+    "expect_status": 400,
+    "expect_name": null
+  }
+]

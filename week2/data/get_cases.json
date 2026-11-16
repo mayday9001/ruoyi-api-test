@@ -1,0 +1,6 @@
+[
+  { "desc": "字母 id", "oid": "not-exist-abc", "expect_status": 404 },
+  { "desc": "纯数字 id", "oid": "123456", "expect_status": 404 },
+  { "desc": "超长 id", "oid": "ffffffffffffffffffffffffffffffffffffffff", "expect_status": 404 },
+  { "desc": "带特殊字符 id", "oid": "a-b_c.d", "expect_status": 404 }
+]
