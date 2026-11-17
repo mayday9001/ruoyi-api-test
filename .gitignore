@@ -15,6 +15,7 @@ env/
 # ===== 测试与输出 =====
 .pytest_cache/
 report/
+report.html
 logs/
 *.log
 
