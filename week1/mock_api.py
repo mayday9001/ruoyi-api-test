@@ -13,6 +13,8 @@ mock_api.py —— 本地被测系统（零依赖，只用 Python 标准库）
 
 接口：
   GET    /ping                健康检查（返回 200 + {"status":"ok"}）
+  POST   /auth                登录（admin/admin123 → 200 + {"token": "..."}；密码错 401）
+  GET    /secure/ping         受保护接口（无 token 或 token 无效 → 401）
   GET    /objects             查询全部
   GET    /objects/{id}        按 id 查询（不存在返回 404）
   POST   /objects             创建（返回 200 + 新对象）
@@ -35,6 +37,12 @@ PORT = 8000
 
 # 内存数据库：id -> 对象
 DB = {}
+
+# 账号表（明文只因为这是本地 mock；真实系统绝不可能这样存）
+USERS = {"admin": "admin123"}
+
+# 已签发的 token（重启即全部失效）
+TOKENS = set()
 
 
 def _new_id():
@@ -85,6 +93,21 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?")[0].strip("/")
         return path.split("/") if path else []
 
+    def _auth_ok(self):
+        """校验 Authorization: Bearer <token>
+
+        返回 (是否通过, token)。
+        故意区分三种失败：没带 / 格式不对 / token 不存在（都已签发集合判断）。
+        """
+        raw = self.headers.get("Authorization") or ""
+        if not raw:
+            return False, None
+        parts = raw.split()
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            return False, None
+        token = parts[1]
+        return token in TOKENS, token
+
     def log_message(self, fmt, *args):
         # 只打印简短日志，避免刷屏
         print(f"  {self.command:<6} {self.path:<40} → {args[1] if len(args) > 1 else ''}")
@@ -99,6 +122,13 @@ class Handler(BaseHTTPRequestHandler):
         if parts == ["objects"]:
             return self._send(200, list(DB.values()))
 
+        # 受保护接口：必须带有效 token
+        if parts == ["secure", "ping"]:
+            ok, _ = self._auth_ok()
+            if not ok:
+                return self._send(401, {"error": "Unauthorized"})
+            return self._send(200, {"status": "ok", "scope": "secure"})
+
         if len(parts) == 2 and parts[0] == "objects":
             oid = parts[1]
             if oid in DB:
@@ -110,6 +140,18 @@ class Handler(BaseHTTPRequestHandler):
     # ---------- POST ----------
     def do_POST(self):
         parts = self._path_parts()
+
+        # ---------- 登录 ----------
+        if parts == ["auth"]:
+            body = self._read_body()
+            username = body.get("username")
+            password = body.get("password")
+            if username not in USERS or USERS[username] != password:
+                return self._send(401, {"error": "用户名或密码错误"})
+            token = uuid.uuid4().hex
+            TOKENS.add(token)
+            return self._send(200, {"token": token, "username": username})
+
         if parts != ["objects"]:
             return self._send(404, {"error": "Not Found"})
 
@@ -203,6 +245,8 @@ def main():
     print("  可用接口：")
     for line in [
         "GET    /ping",
+        "POST   /auth",
+        "GET    /secure/ping",
         "GET    /objects",
         "GET    /objects/{id}",
         "POST   /objects",
